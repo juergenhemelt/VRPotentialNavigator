@@ -1,6 +1,6 @@
 # 240, 130, 0
 
-setwd("C:/Users/surface01/VRPotentialNavigator/UI")
+setwd("C:/Users/surface01/Documents/")
 # runApp("PotentialNavigator")
 library(shiny)
 library(leaflet)
@@ -14,14 +14,15 @@ branchen = c("Tankstellen", "Spielwareneinzelhandel", "Sporteinzelhandel", "Sani
              "Schuheinzelhandel", "Facheinzelhandel mit Nahrungs- und Genussmitteln", "Sortimentseinzel-
              handel mit Nahrungs- und Genussmitteln")
 
-n = 201
+n = 300
+set.seed(1)
 dataRaw <- data.frame(
   name = paste0("Unternehmen", 1:n),
   lat = 51.343479 + rnorm(n, 0, 0.03),
   long = 12.387772 + rnorm(n, 0, 0.03),
   umsatz = sample(0:50000, n, replace = TRUE),
   entfernung = sample(0:100, n, replace = TRUE),
-  bonitaet = sample(0:5, n, replace = TRUE),
+  bonitaet = sample(1:3, n, replace = TRUE),
   potential = sample(0:400, n, replace = TRUE),
   neuKunde = sample(c(T, F), n, replace = TRUE),
   branche = sample(branchen, n, replace = TRUE),
@@ -30,7 +31,7 @@ dataRaw <- data.frame(
   stringsAsFactors = FALSE
 )
 
-dataRaw2 <- read.csv2("daten5.csv", sep = ";", dec = ",",
+dataRaw2 <- read.csv2("C:/Users/surface01/Documents/daten5.csv", sep = ";", dec = ",",
                      encoding = "UTF-8", stringsAsFactors = FALSE, header = TRUE)
 dataRaw$name <- dataRaw2$Column2
 dataRaw$lat <- dataRaw2$lat
@@ -43,8 +44,14 @@ dataRaw2$Ertragspotenzial <- gsub(" ", "", dataRaw2$Ertragspotenzial)
 dataRaw$potential <- as.numeric(dataRaw2$Ertragspotenzial)
 dataRaw$umsatz <- as.numeric(as.numeric(dataRaw2$Umsatz.normiert) / 1000000)
 dataRaw$branche <- dataRaw2$WZ
+dataRaw$neuKunde[201] <- TRUE
 dataRaw$long[177] <- dataRaw$long[178]
 dataRaw$lat[177] <- dataRaw$lat[178]
+dataRaw$long[202] <- dataRaw$long[203]
+dataRaw$lat[202] <- dataRaw$lat[203]
+
+# idx <- which(dataRaw$branche == "Industrie/ Handwerk")
+# dataRaw[idx, ]$umsatz[dataRaw[idx, ]$umsatz >100] <- 12
 
 getColor <- function(data) {
   sapply(dataRaw$neuKunde, function(neuKunde) {
@@ -103,9 +110,9 @@ Ihr VR PotentialNavigator-Team
         column(2, 
                sliderInput("umsatz",
                            "Umsatzerlöse:",
-                           min = min(dataRaw$umsatz),
-                           max = max(dataRaw$umsatz),
-                           value = c(min(dataRaw$umsatz), as.numeric(0.8*max(dataRaw$umsatz))))
+                           min = 5,
+                           max = 15,
+                           value = c(5, 15))
         ),
         column(2, 
                sliderInput("entfernung",
@@ -119,14 +126,15 @@ Ihr VR PotentialNavigator-Team
                            "Bonität:",
                            min = min(dataRaw$bonitaet),
                            max = max(dataRaw$bonitaet),
-                           value = c(min(dataRaw$bonitaet), max(dataRaw$bonitaet)))
+                           value = c(min(dataRaw$bonitaet), max(dataRaw$bonitaet)),
+                           step = 1)
         ),
         column(2,
                sliderInput("potential",
                            "Potential:",
-                           min = min(dataRaw$potential),
-                           max = max(dataRaw$potential),
-                           value = c(as.numeric(min(dataRaw$potential)), max(dataRaw$potential)))
+                           min = 100,
+                           max = 170,
+                           value = c(110, 150))
         ),
         column(2,
                sliderInput("grDatum",
@@ -152,12 +160,18 @@ Ihr VR PotentialNavigator-Team
     # to do: probably needs refactoring
     if(!input$doNameSearch){
       if(!is.null(input$umsatz) & !is.null(input$potential) & !is.null(input$entfernung)){
+        if(!length(input$branche)){
+          FilterBranche = rep(TRUE, n)
+        }else{
+          FilterBranche = dataRaw$branche %in% input$branche 
+        }
         FilterUmsatz <- dataRaw$umsatz >= input$umsatz[1] & dataRaw$umsatz <= input$umsatz[2]
+        print(FilterUmsatz)
         FilterEntfernung <- dataRaw$entfernung >= input$entfernung[1] & dataRaw$entfernung <= input$entfernung[2]
         FilterBonitaet <- dataRaw$bonitaet >= input$bonitaet[1] & dataRaw$bonitaet <= input$bonitaet[2]
         FilterPotential <- dataRaw$potential >= input$potential[1] & dataRaw$potential <= input$potential[2]
         FilterDatum <- dataRaw$gruendungsdatum >= input$grDatum[1] & dataRaw$gruendungsdatum <= input$grDatum[2]
-        Filter <- FilterUmsatz & FilterEntfernung & FilterBonitaet & FilterPotential & FilterDatum
+        Filter <- FilterUmsatz & FilterEntfernung & FilterBonitaet & FilterPotential & FilterDatum & FilterBranche
       }else{
         Filter = rep(TRUE, n)
       }
@@ -168,7 +182,6 @@ Ihr VR PotentialNavigator-Team
         Filter <- dataRaw$name %in% input$name
       }
     }
-    print(Filter)
     dataRaw[Filter, ]
   })
   
